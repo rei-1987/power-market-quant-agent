@@ -1,77 +1,365 @@
 # Power Market Quant Research Agent
 
-A domain-specific AI agent for electricity-market quantitative research.
+A domain-specific AI framework for electricity-market quantitative research.
 
-The agent takes natural-language power-market questions and automatically routes them into one of three execution modes:
+The system takes natural-language power-market questions, converts them into structured research tasks, applies point-in-time data controls, executes quantitative analysis, and returns evidence-based research conclusions.
 
-- **Research Mode** — tests historical market hypotheses.
-- **Historical Replay Mode** — reconstructs what the agent could have concluded at a past decision time using only information available then.
-- **Live Forecast Mode** — evaluates the latest market data and produces a current market signal.
-
-The current prototype focuses on the German **DE-LU power market**.
+The current implementation focuses on the **German DE-LU power market**, while the architecture is designed to separate reusable agent and quantitative logic from market-specific data, features, products, and rules.
 
 ---
 
-## Core idea
+## What the agent does
 
-The system separates:
+Users can ask power-market questions in natural language.
 
-1. Natural-language understanding
-2. Structured research specification
-3. Data retrieval
-4. Quantitative analysis
-5. LLM reasoning
-6. Research decision
+The agent automatically routes each request into one of three execution modes:
 
-The research workflow can return explicit outcomes such as:
+### Research Mode
 
-- `CONTINUE`
-- `STOP`
-- `INCONCLUSIVE`
+Tests historical market hypotheses using quantitative evidence.
 
-This allows the agent to stop weak hypotheses early instead of always producing a narrative answer.
-
----
-
-## Run the demo
-
-Requires **Python 3.10+**.
-
-Install runtime dependencies:
-
-```powershell
-python -m pip install -r requirements_runtime.txt
-```
-
-Launch the Streamlit interface:
-
-```powershell
-streamlit run ui/streamlit_app.py
-```
-
-Then open the local Streamlit URL shown in the terminal.
-
-The interface accepts natural-language questions and automatically routes each request to Research, Historical Replay, or Live Forecast.
-
-The three buttons in the interface are only demo shortcuts. They prefill example requests while the router still determines the execution mode automatically.
-
----
-
-## Example requests
-
-### Research
+Example:
 
 ```text
-Do downward wind revisions increase the probability that ID1 > ID3?
+Do downward wind forecast revisions increase the probability that ID1 > ID3?
 ```
 
-### Historical Replay
+Research Mode is intended for hypothesis testing, exploratory analysis, robustness checks, and the development of market signals.
+
+---
+
+### Historical Replay Mode
+
+Reconstructs what the system could have concluded at a past decision time using **only information that was available at that time**.
+
+Example:
 
 ```text
 What would the agent have concluded at 08:00 on 2025-06-12?
 ```
 
-### Live Forecast
+This mode is designed to prevent future-information leakage and support realistic historical evaluation.
+
+---
+
+### Live Forecast Mode
+
+Uses the latest available market and forecast data to evaluate the current market state.
+
+Example:
+
+```text
+What does the latest wind forecast revision imply for tonight's intraday market?
+```
+
+The current prototype produces research-oriented market signals rather than executing trades.
+
+---
+
+# Core idea
+
+The system separates six different responsibilities:
+
+```text
+Natural-language request
+        ↓
+Request routing
+        ↓
+Structured research specification
+        ↓
+Validation + point-in-time controls
+        ↓
+Quantitative execution
+        ↓
+Evidence interpretation
+        ↓
+Research conclusion
+```
+
+The LLM is not responsible for calculating market statistics.
+
+Quantitative calculations are performed by deterministic tools. The reasoning layer interprets the resulting evidence and explains the research conclusion.
+
+This separation is intended to make the workflow more reproducible, auditable, and suitable for quantitative market research.
+
+---
+
+# Architecture
+
+The system is organized around a reusable agent core and market-specific quantitative components.
+
+```text
+                         Natural Language
+                                │
+                                ▼
+                         Request Router
+                                │
+             ┌──────────────────┼──────────────────┐
+             │                  │                  │
+             ▼                  ▼                  ▼
+        Research Mode     Historical Replay    Live Forecast
+             │                  │                  │
+             └──────────────────┼──────────────────┘
+                                │
+                                ▼
+                    Structured Research Spec
+                                │
+                                ▼
+                    Compiler + Validation
+                                │
+                                ▼
+                  Point-in-Time Data Controls
+                                │
+                                ▼
+                      Quantitative Engine
+                                │
+                     ┌──────────┴──────────┐
+                     │                     │
+                     ▼                     ▼
+             Generic Quant Tools      Market-Specific
+                                      Components
+                     │                     │
+                     │                 Germany DE-LU
+                     │                 ├── data
+                     │                 ├── features
+                     │                 ├── targets
+                     │                 ├── products
+                     │                 └── market rules
+                     │
+                     └──────────┬──────────┘
+                                │
+                                ▼
+                             Evidence
+                                │
+                                ▼
+                       LLM Interpretation
+                                │
+                                ▼
+                      Research Conclusion
+```
+
+The current prototype is implemented for **Germany DE-LU**.
+
+The longer-term architecture is intended to support additional market-specific modules, for example:
+
+```text
+Market Interface
+├── Germany DE-LU
+├── France
+└── China
+```
+
+The reusable agent workflow should remain largely unchanged, while market-specific data sources, products, rules, features, and targets can be replaced or extended.
+
+---
+
+# Quantitative research layer
+
+The next stage of development focuses on strengthening the quantitative layer behind the agent.
+
+The intended research workflow is:
+
+```text
+Point-in-time market data
+        ↓
+Feature construction
+        ↓
+Target construction
+        ↓
+Statistical analysis
+        ↓
+Signal development
+        ↓
+Walk-forward evaluation
+        ↓
+Backtesting
+        ↓
+Trading-oriented research metrics
+```
+
+Initial Germany-focused research includes variables such as:
+
+- wind forecast revisions
+- solar forecast revisions
+- load forecasts
+- residual load
+- day-ahead prices
+- intraday prices
+- generation
+- forecast vintages
+
+A key objective is to test whether information available at a given decision time contains predictive value for subsequent intraday price movements.
+
+---
+
+# Point-in-time correctness
+
+Point-in-time correctness is a central design principle.
+
+For every historical research or replay task, the system should distinguish between:
+
+```text
+delivery time
+decision time
+data publication time
+forecast vintage
+actual outcome
+```
+
+Historical execution must only use information that would genuinely have been available at the specified decision time.
+
+For example:
+
+```text
+08:00 decision time
+        ↓
+latest forecast available before 08:00
+        ↓
+market information available before 08:00
+        ↓
+research / signal
+        ↓
+future market outcome
+```
+
+The future outcome may be used later for evaluation, but it must not leak into the research process itself.
+
+This is particularly important for:
+
+- forecast revision studies
+- historical replay
+- signal development
+- machine-learning validation
+- backtesting
+
+---
+
+# Current Germany DE-LU data work
+
+The project is being developed alongside a separate point-in-time data pipeline for German power-market research.
+
+Current work includes:
+
+- ENTSO-E wind forecast vintages
+- ENTSO-E solar forecast vintages
+- day-ahead forecasts
+- intraday/current forecasts
+- historical actual generation
+- timestamped data collection
+- change detection
+- 15-minute time series
+- market-price data exploration and alignment
+
+The goal is to preserve not only the final value of a forecast, but also **which version of the forecast was available at each point in time**.
+
+This allows the research layer to reconstruct realistic historical information sets.
+
+---
+
+# Repository structure
+
+Main components:
+
+```text
+routing/
+    Request understanding and execution-mode selection
+
+compiler/
+    Research-spec compilation
+    Validation
+    Variable registry
+
+execution/
+    Research execution
+    Historical replay
+    Live forecast workflows
+
+tools/
+    Data access
+    Quantitative analysis tools
+
+reasoning/
+    Interpretation of quantitative evidence
+
+schemas/
+    Structured research specifications
+
+ui/
+    Streamlit demo interface
+
+tests/
+    Automated validation and parsing tests
+```
+
+As the project develops, the quantitative layer is intended to become more explicitly separated into reusable quantitative tools and market-specific components.
+
+Conceptually:
+
+```text
+quant/
+    statistics
+    hypothesis tests
+    robustness
+    walk-forward evaluation
+    backtesting
+    metrics
+
+markets/
+    de_lu/
+        data
+        features
+        targets
+        products
+        market rules
+```
+
+---
+
+# Run the demo
+
+Requires **Python 3.10+**.
+
+Install runtime dependencies:
+
+```bash
+python -m pip install -r requirements_runtime.txt
+```
+
+Launch the Streamlit interface:
+
+```bash
+streamlit run ui/streamlit_app.py
+```
+
+Then open the local Streamlit URL shown in the terminal.
+
+The interface accepts natural-language questions and automatically routes each request to:
+
+- Research
+- Historical Replay
+- Live Forecast
+
+The three buttons shown in the interface are only demo shortcuts.
+
+They prefill example questions; the router still determines the execution mode automatically.
+
+---
+
+# Example requests
+
+## Research
+
+```text
+Do downward wind revisions increase the probability that ID1 > ID3?
+```
+
+## Historical Replay
+
+```text
+What would the agent have concluded at 08:00 on 2025-06-12?
+```
+
+## Live Forecast
 
 ```text
 What does the latest wind forecast revision imply for tonight's intraday market?
@@ -79,28 +367,43 @@ What does the latest wind forecast revision imply for tonight's intraday market?
 
 ---
 
-## Architecture
+# Market data
 
-Main components:
+The current prototype is designed around German DE-LU power-market data.
 
-- `routing/` — request understanding and execution-mode selection
-- `compiler/` — hypothesis compilation, validation, and variable registry
-- `execution/` — research, historical replay, and live pipelines
-- `tools/` — data access and quantitative analysis tools
-- `reasoning/` — interpretation of quantitative evidence and research decisions
-- `schemas/` — structured research specification
-- `ui/` — Streamlit demo interface
-- `tests/` — automated tests
+Relevant variables include:
 
-A detailed architecture diagram is included in:
+- day-ahead prices
+- intraday prices
+- wind forecasts
+- solar forecasts
+- generation
+- load
+- forecast revisions
 
-`agent framework 2026_09_27_13_40.png`
+Historical and live execution can use the configured market dataset through:
+
+```text
+MARKET_DATA_CSV
+```
+
+Private or licensed market datasets are not included in this repository.
 
 ---
 
-## Environment variables
+# Environment variables
 
-Copy `.env.example` to `.env`.
+Copy:
+
+```text
+.env.example
+```
+
+to:
+
+```text
+.env
+```
 
 Available configuration:
 
@@ -111,74 +414,133 @@ MARKET_DATA_CSV=
 
 Do not commit `.env`.
 
-The repository already excludes `.env` through `.gitignore`.
+The repository excludes `.env` through `.gitignore`.
 
 ---
 
-## Market data
-
-The agent is designed around DE-LU power-market data, including variables such as:
-
-- day-ahead prices
-- intraday prices
-- wind forecasts
-- solar forecasts
-- generation
-- load
-- forecast revisions
-
-Historical and live execution use the configured market dataset through `MARKET_DATA_CSV`.
-
-Private or licensed market datasets are not included in this repository.
-
----
-
-## Run tests
+# Run tests
 
 Install development dependencies:
 
-```powershell
+```bash
 python -m pip install -r requirements.txt
 ```
 
-Run the test suite:
+Run:
 
-```powershell
+```bash
 python -m pytest
 ```
 
----
-
-## Design principles
-
-### Point-in-time correctness
-
-Historical replay only uses information available at the requested decision time, helping avoid future-information leakage.
-
-### Structured research specification
-
-Natural-language questions are converted into structured research specifications before execution.
-
-### Separation of evidence and reasoning
-
-Quantitative calculations are performed by deterministic tools.
-
-The reasoning layer interprets the evidence and determines the next research action rather than inventing numerical results.
-
-### Explicit research decisions
-
-The agent can return `CONTINUE`, `STOP`, or `INCONCLUSIVE` depending on the available evidence.
+The current test suite includes validation of delivery-window and decision-time parsing used by the structured research workflow.
 
 ---
 
-## Hackathon scope
+# Design principles
 
-This repository was developed for the **X-IA Hackathon — Rise of Agents X**.
+## 1. Structured before generative
 
-The current prototype demonstrates the core architecture and end-to-end execution logic of a power-market quantitative research agent across:
+Natural-language requests are converted into structured research specifications before quantitative execution.
 
-- historical research
-- historical replay
-- live market analysis
+The LLM should not directly invent market variables, time boundaries, or numerical results.
 
-This is a research prototype and not a production trading system.
+---
+
+## 2. Point-in-time correctness
+
+Historical analysis must respect the information that was genuinely available at the stated decision time.
+
+This reduces look-ahead bias and future-information leakage.
+
+---
+
+## 3. Deterministic quantitative tools
+
+Statistical calculations and data transformations are performed by explicit quantitative tools.
+
+The reasoning layer interprets their output rather than generating numerical evidence itself.
+
+---
+
+## 4. Separation of reusable logic and market knowledge
+
+The agent workflow should not depend on one specific electricity market.
+
+Market-specific elements such as:
+
+- data sources
+- product definitions
+- trading windows
+- market rules
+- features
+- targets
+
+should be isolated from reusable research and quantitative logic.
+
+Germany DE-LU is the first implementation.
+
+---
+
+## 5. Evidence-based conclusions
+
+Research conclusions should be grounded in the quantitative evidence generated by the system.
+
+The goal is not to produce a plausible narrative, but to determine what the available data actually supports.
+
+---
+
+# Current development direction
+
+The hackathon prototype established the main agent architecture and end-to-end execution workflow.
+
+Development is continuing beyond the hackathon.
+
+The current priority is the **Germany-focused quantitative research layer**, including:
+
+```text
+forecast vintages
+        ↓
+feature engineering
+        ↓
+statistical relationships
+        ↓
+price / spread prediction
+        ↓
+signal development
+        ↓
+walk-forward validation
+        ↓
+backtesting
+```
+
+Future extensions may include:
+
+- stronger intraday price modelling
+- machine-learning forecasting
+- trading-signal evaluation
+- transaction-cost-aware backtesting
+- BESS optimization
+- additional European electricity markets
+- market-specific modules for France and other regions
+
+---
+
+# Project scope
+
+This repository originated from the **X-IA Hackathon — Rise of Agents X**.
+
+The hackathon version demonstrated:
+
+- natural-language request routing
+- Research Mode
+- Historical Replay Mode
+- Live Forecast Mode
+- structured research specifications
+- decision-time constraints
+- point-in-time execution logic
+- automated validation tests
+- Streamlit demo interface
+
+The project is now being extended into a broader electricity-market quantitative research framework.
+
+It remains a **research prototype** and is not currently a production trading or execution system.
